@@ -44,6 +44,6 @@ SIP.Hacks = require('./Hacks')(SIP);
 require('./SanityCheck')(SIP);
 SIP.DigestAuthentication = require('./DigestAuthentication')(SIP.Utils);
 SIP.Grammar = require('./Grammar')(SIP);
-
+SIP.environment = environment;
 return SIP;
 };
