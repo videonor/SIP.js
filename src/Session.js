@@ -591,8 +591,8 @@ Session.prototype = {
       request.reply(415);
       return;
     }
-    
-    self.mediaHandler = self.mediaHandler.next(req.body);
+
+    self.mediaHandler = self.mediaHandler.next(request.body);
 
     this.mediaHandler.setDescription(request.body)
     .then(this.mediaHandler.getDescription.bind(this.mediaHandler, this.mediaHint))
@@ -639,16 +639,15 @@ Session.prototype = {
   },
 
   sendReinvite: function(options) {
-    var self = this;
     options = options || {};
 
-    self.mediaHandler = self.mediaHandler.next();
-    
+
     var
       self = this,
        extraHeaders = (options.extraHeaders || []).slice(),
-       eventHandlers = options.eventHandlers || {},
-       mangle = options.mangle || null;
+       eventHandlers = options.eventHandlers || {};
+
+    self.mediaHandler = self.mediaHandler.next();
 
     if (eventHandlers.succeeded) {
       this.reinviteSucceeded = eventHandlers.succeeded;
