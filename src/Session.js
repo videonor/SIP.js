@@ -591,6 +591,8 @@ Session.prototype = {
       request.reply(415);
       return;
     }
+    
+    self.mediaHandler = self.mediaHandler.next(req.body);
 
     this.mediaHandler.setDescription(request.body)
     .then(this.mediaHandler.getDescription.bind(this.mediaHandler, this.mediaHint))
@@ -600,6 +602,19 @@ Session.prototype = {
           self.status = C.STATUS_WAITING_FOR_ACK;
           self.setInvite2xxTimer(request, body);
           self.setACKTimer();
+
+          SIP.Timers.setTimeout(function() {
+            if(self.status === C.STATUS_WAITING_FOR_ACK) {
+              // Reinvite failed
+              var previousHandler = self.mediaHandler.previous();
+              self.mediaHandler.close();
+              self.mediaHandler = previousHandler();
+            }
+            else {
+              // Reinvite OK
+              self.mediaHandler.previous().close();
+            }
+          }, SIP.Timers.TIMER_H);
 
           // Are we holding?
           var hold = (/a=(sendonly|inactive)/).test(request.body);
@@ -624,8 +639,11 @@ Session.prototype = {
   },
 
   sendReinvite: function(options) {
+    var self = this;
     options = options || {};
 
+    self.mediaHandler = self.mediaHandler.next();
+    
     var
       self = this,
        extraHeaders = (options.extraHeaders || []).slice(),
@@ -639,12 +657,17 @@ Session.prototype = {
         SIP.Timers.clearTimeout(self.timers.ackTimer);
         SIP.Timers.clearTimeout(self.timers.invite2xxTimer);
         self.status = C.STATUS_CONFIRMED;
+        self.mediaHandler.previous().close();
       };
     }
     if (eventHandlers.failed) {
       this.reinviteFailed = eventHandlers.failed;
     } else {
-      this.reinviteFailed = function(){};
+      this.reinviteFailed = function() {
+        var previousHandler = self.mediaHandler.previous();
+        self.mediaHandler.close();
+        self.mediaHandler = previousHandler();
+      };
     }
 
     extraHeaders.push('Contact: ' + this.contact);
@@ -653,8 +676,8 @@ Session.prototype = {
 
     this.receiveResponse = this.receiveReinviteResponse;
     //REVISIT
-    this.mediaHandler.getDescription(self.mediaHint)
-    .then(mangle)
+    this.mediaHandler.getDescription(options.media)
+    //.then(mangle)
     .then(
       function(body){
         self.dialog.sendRequest(self, SIP.C.INVITE, {
@@ -994,10 +1017,6 @@ InviteServerContext = function(ua, request) {
     //TODO: instead of 415, pass off to the media handler, who can then decide if we can use it
     return;
   }
-
-  //TODO: move this into media handler
-  SIP.Hacks.Firefox.cannotHandleExtraWhitespace(request);
-  SIP.Hacks.AllBrowsers.maskDtls(request);
 
   SIP.Utils.augment(this, SIP.ServerContext, [ua, request]);
   SIP.Utils.augment(this, SIP.Session, [ua.configuration.mediaHandlerFactory]);
@@ -1471,9 +1490,6 @@ InviteServerContext.prototype = {
         if (!this.hasAnswer) {
           if(request.body && request.getHeader('content-type') === 'application/sdp') {
             // ACK contains answer to an INVITE w/o SDP negotiation
-            SIP.Hacks.Firefox.cannotHandleExtraWhitespace(request);
-            SIP.Hacks.AllBrowsers.maskDtls(request);
-
             this.hasAnswer = true;
             this.mediaHandler.setDescription(request.body)
             .then(
@@ -1862,9 +1878,6 @@ InviteClientContext.prototype = {
             return;
           }
 
-          SIP.Hacks.Firefox.cannotHandleExtraWhitespace(response);
-          SIP.Hacks.AllBrowsers.maskDtls(response);
-
           if (!response.body) {
             extraHeaders.push('RAck: ' + response.getHeader('rseq') + ' ' + response.getHeader('cseq'));
             this.earlyDialogs[id].pracked.push(response.getHeader('rseq'));
@@ -1979,9 +1992,6 @@ InviteClientContext.prototype = {
         if (this.dialog) {
           break;
         }
-
-        SIP.Hacks.Firefox.cannotHandleExtraWhitespace(response);
-        SIP.Hacks.AllBrowsers.maskDtls(response);
 
         // This is an invite without sdp
         if (!this.hasOffer) {

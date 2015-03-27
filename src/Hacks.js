@@ -10,10 +10,8 @@
 module.exports = function (SIP) {
 var Hacks = {
   AllBrowsers: {
-    maskDtls: function (message) {
-      if (message.body) {
-        message.body = message.body.replace(/ UDP\/TLS\/RTP\/SAVP/gmi, " RTP/SAVP");
-      }
+    maskDtls: function (sdp) {
+      return sdp.replace(/ UDP\/TLS\/RTP\/SAVP/gmi, " RTP/SAVP");
     },
     unmaskDtls: function (sdp) {
       /**
@@ -36,10 +34,11 @@ var Hacks = {
       return typeof mozRTCPeerConnection !== 'undefined';
     },
 
-    cannotHandleExtraWhitespace: function (message) {
-      if (this.isFirefox() && message.body) {
-        message.body = message.body.replace(/ \r\n/g, "\r\n");
+    cannotHandleExtraWhitespace: function (sdp) {
+      if (this.isFirefox()) {
+        return sdp.replace(/ \r\n/g, "\r\n");
       }
+      return sdp;
     },
 
     hasMissingCLineInSDP: function (sdp) {
