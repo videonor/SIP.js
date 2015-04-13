@@ -665,7 +665,7 @@ Session.prototype = {
       this.reinviteFailed = function() {
         var previousHandler = self.mediaHandler.previous();
         self.mediaHandler.close();
-        self.mediaHandler = previousHandler();
+        self.mediaHandler = previousHandler;
       };
     }
 
