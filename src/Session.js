@@ -595,7 +595,7 @@ Session.prototype = {
     self.mediaHandler = self.mediaHandler.next(request.body);
 
     this.mediaHandler.setDescription(request.body)
-    .then(this.mediaHandler.getDescription.bind(this.mediaHandler, this.mediaHint))
+    .then(this.mediaHandler.getDescription.bind(self.mediaHandler, self.mediaHint))
     .then(function(body) {
       request.reply(200, null, ['Contact: ' + self.contact], body,
         function() {
@@ -608,7 +608,7 @@ Session.prototype = {
               // Reinvite failed
               var previousHandler = self.mediaHandler.previous();
               self.mediaHandler.close();
-              self.mediaHandler = previousHandler();
+              self.mediaHandler = previousHandler;
             }
             else {
               // Reinvite OK
@@ -641,6 +641,8 @@ Session.prototype = {
   sendReinvite: function(options) {
     options = options || {};
 
+    SIP.Utils.optionsOverride(options, 'media', 'mediaConstraints', true, this.logger, this.ua.configuration.media);
+    this.mediaHint = options.media;
 
     var
       self = this,
