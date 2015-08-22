@@ -592,8 +592,6 @@ Session.prototype = {
       return;
     }
 
-    self.mediaHandler = self.mediaHandler.next(request.body);
-
     this.mediaHandler.setDescription(request.body)
     .then(this.mediaHandler.getDescription.bind(self.mediaHandler, self.mediaHint))
     .then(function(body) {
@@ -606,13 +604,9 @@ Session.prototype = {
           SIP.Timers.setTimeout(function() {
             if(self.status === C.STATUS_WAITING_FOR_ACK) {
               // Reinvite failed
-              var previousHandler = self.mediaHandler.previous();
-              self.mediaHandler.close();
-              self.mediaHandler = previousHandler;
             }
             else {
               // Reinvite OK
-              self.mediaHandler.previous().close();
             }
           }, SIP.Timers.TIMER_H);
 
@@ -649,8 +643,6 @@ Session.prototype = {
        extraHeaders = (options.extraHeaders || []).slice(),
        eventHandlers = options.eventHandlers || {};
 
-    self.mediaHandler = self.mediaHandler.next();
-
     if (eventHandlers.succeeded) {
       this.reinviteSucceeded = eventHandlers.succeeded;
     } else {
@@ -658,16 +650,13 @@ Session.prototype = {
         SIP.Timers.clearTimeout(self.timers.ackTimer);
         SIP.Timers.clearTimeout(self.timers.invite2xxTimer);
         self.status = C.STATUS_CONFIRMED;
-        self.mediaHandler.previous().close();
       };
     }
     if (eventHandlers.failed) {
       this.reinviteFailed = eventHandlers.failed;
     } else {
       this.reinviteFailed = function() {
-        var previousHandler = self.mediaHandler.previous();
-        self.mediaHandler.close();
-        self.mediaHandler = previousHandler;
+        
       };
     }
 
