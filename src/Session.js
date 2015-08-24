@@ -632,7 +632,7 @@ Session.prototype = {
     });
   },
 
-  sendReinvite: function(options) {
+    sendReinvite: function(options) {
     options = options || {};
 
     SIP.Utils.optionsOverride(options, 'media', 'mediaConstraints', true, this.logger, this.ua.configuration.media);
@@ -643,15 +643,14 @@ Session.prototype = {
        extraHeaders = (options.extraHeaders || []).slice(),
        eventHandlers = options.eventHandlers || {};
 
-    if (eventHandlers.succeeded) {
-      this.reinviteSucceeded = eventHandlers.succeeded;
-    } else {
-      this.reinviteSucceeded = function(){
-        SIP.Timers.clearTimeout(self.timers.ackTimer);
-        SIP.Timers.clearTimeout(self.timers.invite2xxTimer);
-        self.status = C.STATUS_CONFIRMED;
-      };
-    }
+    
+     this.reinviteSucceeded = function(){
+       eventHandlers.succeeded instanceof Function ? eventHandlers.succeeded() : null;
+       SIP.Timers.clearTimeout(self.timers.ackTimer);
+       SIP.Timers.clearTimeout(self.timers.invite2xxTimer);
+       self.status = C.STATUS_CONFIRMED;
+     };
+    
     if (eventHandlers.failed) {
       this.reinviteFailed = eventHandlers.failed;
     } else {
@@ -666,7 +665,18 @@ Session.prototype = {
 
     this.receiveResponse = this.receiveReinviteResponse;
     //REVISIT
-    this.mediaHandler.getDescription(options.media)
+    
+    var getReInviteSdp = this.mediaHandler.getDescription.bind(self.mediaHandler, options.media);
+    
+    if (options.sdp) {
+        getReInviteSdp = function() {
+          return new Promise(function(resolve, reject) {
+              resolve(options.sdp);
+          });
+        }
+    }
+    
+    getReInviteSdp()
     //.then(mangle)
     .then(
       function(body){
